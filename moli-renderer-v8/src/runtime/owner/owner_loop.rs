@@ -194,6 +194,8 @@ impl RendererOwnerHandle {
                         continue;
                     }
                     let completed_page_turn_token = pending_turn.page_owner_token();
+                    let settled_command_page_token =
+                        pending_turn.turn.committed_page_view_command_token();
                     let outcome = self
                         .run_pending_turn_on_owner_local_store(pending_turn.turn)
                         .await;
@@ -215,6 +217,13 @@ impl RendererOwnerHandle {
                             } else if let Err(error) = result {
                                 tracing::debug!(
                                     "background pending turn finished with error: {error}"
+                                );
+                            }
+                            if let Some(token) = settled_command_page_token {
+                                self.enqueue_parked_turns_for_wake(
+                                    token,
+                                    &mut parked_turns,
+                                    &mut pending_turns,
                                 );
                             }
                         }
@@ -561,9 +570,9 @@ impl RendererOwnerHandle {
             RendererOwnerCommand::RemovePage { token } => Some(*token),
             _ => None,
         };
+        let command_page_token = renderer_command_admission_page_token(&command);
         let mut command_admission_output_predecessor =
-            renderer_command_admission_page_token(&command)
-                .and_then(renderer_output_fence_for_tail_on_bound_owner_local_store);
+            command_page_token.and_then(renderer_output_fence_for_tail_on_bound_owner_local_store);
         let command_future =
             Box::pin(self.dispatch_command_inline_on_owner_local_store(command, owner_local_store));
         let outcome = command_future.await;
@@ -581,6 +590,14 @@ impl RendererOwnerHandle {
                     command_admission_output_predecessor.take(),
                 );
                 let _ = reply_tx.send(result);
+                if let Some(token) = command_page_token {
+                    // A settled command can change what a parked wait on the
+                    // same Page is waiting for, such as the resolver of an
+                    // `awaitPromise` expression. Nothing else wakes an idle
+                    // Page, so re-poll its waits instead of leaving them to
+                    // the next timer or maintenance turn.
+                    self.enqueue_parked_turns_for_wake(token, parked_turns, pending_turns);
+                }
             }
             #[cfg(feature = "devtools")]
             RenderRuntimeDispatchOutcome::InspectorMainCommandClaimed {

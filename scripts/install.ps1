@@ -2,7 +2,7 @@ $ErrorActionPreference = "Stop"
 $releaseBaseUrl = if ($env:MOLI_RELEASE_BASE_URL) {
     $env:MOLI_RELEASE_BASE_URL.TrimEnd("/")
 } else {
-    "https://github.com/lexmount/moli/releases/latest/download"
+    "https://github.com/MohammadErfan-Jabbari/moli/releases/latest/download"
 }
 $architecture = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
 $target = switch ($architecture) {

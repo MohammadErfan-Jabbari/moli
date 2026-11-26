@@ -597,6 +597,39 @@ fn renderer_document_isolate_memory_pressure_escalates_at_one_third_of_heap_limi
         100, 100
     ));
 }
+#[test]
+fn periodic_maintenance_collects_only_after_the_heap_grew_past_the_threshold() {
+    let mut vm = new_storage_test_vm("https://periodic-maintenance.test/");
+    vm.notify_renderer_document_isolate_periodic_maintenance()
+        .expect("an idle isolate has nothing to collect");
+    assert_eq!(
+        vm.last_maintenance_used_heap_size, 0,
+        "a heap below the growth threshold leaves the baseline unset"
+    );
+
+    vm.eval(
+        "globalThis.retained = Array.from({ length: 400000 }, (_, i) => ({ i, s: 'x' + i })); 1",
+    )
+    .expect("grow the heap well past 8 MiB");
+    vm.notify_renderer_document_isolate_periodic_maintenance()
+        .expect("growth past the threshold runs a moderate collection");
+    let baseline = vm.last_maintenance_used_heap_size;
+    assert!(
+        baseline >= 8 * 1024 * 1024,
+        "the baseline records the heap after the collection: {baseline}"
+    );
+
+    vm.notify_renderer_document_isolate_periodic_maintenance()
+        .expect("an unchanged heap is left alone");
+    assert!(vm.last_maintenance_used_heap_size <= baseline);
+
+    vm.eval("globalThis.retained = undefined; 1")
+        .expect("release the retained objects");
+    vm.collect_renderer_document_isolate_garbage().unwrap();
+    vm.notify_renderer_document_isolate_periodic_maintenance()
+        .expect("a shrunk heap lowers the baseline");
+    assert!(vm.last_maintenance_used_heap_size < baseline);
+}
 #[tokio::test]
 async fn child_javascript_url_nested_frame_uses_inherited_frame_src_policy() {
     let loader = ResourceRequestClient::new(&moli_fetch::FetchConfig::default()).expect("loader");

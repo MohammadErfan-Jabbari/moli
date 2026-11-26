@@ -949,6 +949,7 @@ pub(super) struct ScriptVm {
         Option<crate::frame_owner_model::FrameDocumentTaskOwner>,
     #[cfg(any(test, feature = "devtools"))]
     script_execution_memory: script_execution_memory::ScriptExecutionMemoryCounters,
+    last_maintenance_used_heap_size: usize,
     runtime_observable_source_queue: RendererRuntimeObservableSourceQueue,
     page_context_cancel_tx: RendererPageContextCancelSender,
     pressed_mouse_buttons: i32,
@@ -2474,6 +2475,7 @@ impl ScriptVmDefaultWorldBootstrap {
             #[cfg(any(test, feature = "devtools"))]
             script_execution_memory:
                 script_execution_memory::ScriptExecutionMemoryCounters::default(),
+            last_maintenance_used_heap_size: 0,
             runtime_observable_source_queue: RendererRuntimeObservableSourceQueue::default(),
             pressed_mouse_buttons: 0,
             hovered_mouse_handle: None,

@@ -25,13 +25,14 @@ use super::owner_local_store::{
 };
 use crate::local_executor::JsLocalExecutor;
 
-const ACTIVE_PAGE_MODERATE_MEMORY_PRESSURE_PERIOD: Duration = Duration::from_secs(1);
+const ACTIVE_PAGE_MODERATE_MEMORY_PRESSURE_PERIOD: Duration = Duration::from_secs(15);
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum RendererOwnerMaintenanceAction {
-    /// Ask V8 to perform memory-pressure maintenance for the isolate currently
-    /// attached to this Page. The isolate selects moderate or critical
-    /// pressure from its current heap occupancy.
+    /// Run periodic maintenance for the isolate currently attached to this
+    /// Page. It escalates to critical pressure above a third of the heap
+    /// limit, requests moderate pressure only after the used heap grew by 8 MiB
+    /// since the last maintenance, and otherwise only prunes host caches.
     MemoryPressure,
 }
 
@@ -148,7 +149,7 @@ pub(super) async fn execute_owner_maintenance_task_on_local_lane(
                     .page_vm_mut()
                     .vm_mut()
                     .renderer_document_isolate_ops()
-                    .notify_renderer_document_isolate_memory_pressure(),
+                    .notify_renderer_document_isolate_periodic_maintenance(),
             }
         })
     })

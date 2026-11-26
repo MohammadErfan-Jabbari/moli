@@ -467,13 +467,11 @@ impl ScriptVm {
                 isolate.low_memory_notification();
                 Ok(())
             })?;
-        let mut host = self._context_host.borrow_mut();
-        host.prune_collected_iframe_content_surfaces();
-        host.native_bridge_mut()
-            .prune_collected_isolated_world_wrapper_caches();
+        self.prune_collected_host_caches();
         Ok(())
     }
 
+    #[cfg(test)]
     pub(super) fn notify_renderer_document_isolate_memory_pressure(&mut self) -> Result<()> {
         self.renderer_document_isolate
             .with_entered_renderer_document_isolate(|isolate| {
@@ -494,11 +492,47 @@ impl ScriptVm {
                 }
                 Ok(())
             })?;
+        self.prune_collected_host_caches();
+        Ok(())
+    }
+
+    pub(super) fn notify_renderer_document_isolate_periodic_maintenance(&mut self) -> Result<()> {
+        const PERIODIC_GC_HEAP_GROWTH_THRESHOLD_BYTES: usize = 8 * 1024 * 1024;
+        let last_used = self.last_maintenance_used_heap_size;
+        let updated_used = self
+            .renderer_document_isolate
+            .with_entered_renderer_document_isolate(|isolate| {
+                let stats = isolate.get_heap_statistics();
+                let used = stats.used_heap_size();
+                if renderer_document_isolate_critical_pressure_required(
+                    used,
+                    stats.heap_size_limit(),
+                ) {
+                    isolate.memory_pressure_notification(v8::MemoryPressureLevel::Critical);
+                    isolate.low_memory_notification();
+                    Ok(Some(isolate.get_heap_statistics().used_heap_size()))
+                } else if used >= last_used.saturating_add(PERIODIC_GC_HEAP_GROWTH_THRESHOLD_BYTES)
+                {
+                    isolate.memory_pressure_notification(v8::MemoryPressureLevel::Moderate);
+                    Ok(Some(isolate.get_heap_statistics().used_heap_size()))
+                } else if used < last_used {
+                    Ok(Some(used))
+                } else {
+                    Ok(None)
+                }
+            })?;
+        if let Some(used) = updated_used {
+            self.last_maintenance_used_heap_size = used;
+        }
+        self.prune_collected_host_caches();
+        Ok(())
+    }
+
+    fn prune_collected_host_caches(&self) {
         let mut host = self._context_host.borrow_mut();
         host.prune_collected_iframe_content_surfaces();
         host.native_bridge_mut()
             .prune_collected_isolated_world_wrapper_caches();
-        Ok(())
     }
 
     pub(super) fn snapshot_console_messages_in_context(
@@ -574,8 +608,9 @@ impl ScriptVmRendererDocumentIsolateOps<'_> {
         self.vm.collect_renderer_document_isolate_garbage()
     }
 
-    pub(crate) fn notify_renderer_document_isolate_memory_pressure(&mut self) -> Result<()> {
-        self.vm.notify_renderer_document_isolate_memory_pressure()
+    pub(crate) fn notify_renderer_document_isolate_periodic_maintenance(&mut self) -> Result<()> {
+        self.vm
+            .notify_renderer_document_isolate_periodic_maintenance()
     }
 }
 

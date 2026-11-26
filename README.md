@@ -1,3 +1,10 @@
+> **Erfan's fork of [lexmount/moli](https://github.com/lexmount/moli), version `1.1.27-idlegc.1`.**
+> It changes one thing: idle pages no longer run a major V8 garbage collection every second.
+> Stock 1.1.27 sends V8 a moderate memory-pressure notification once per second on every live page,
+> about 16% of a core on an idle page ([lexmount/moli#3791](https://github.com/lexmount/moli/issues/3791)).
+> Here the check runs every 15 s and notifies V8 only when the used heap grew by more than 8 MiB since the last check;
+> the critical escalation stays. Install from this fork's releases: see the install commands below.
+
 <p align="center">
   <picture>
     <source
@@ -80,13 +87,13 @@ On Linux or macOS:
 
 ```sh
 curl --proto '=https' --tlsv1.2 -fsSL \
-  https://github.com/lexmount/moli/releases/latest/download/moli-installer.sh | sh
+  https://github.com/MohammadErfan-Jabbari/moli/releases/latest/download/moli-installer.sh | sh
 ```
 
 On Windows, run in PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy ByPass -c "irm https://github.com/lexmount/moli/releases/latest/download/moli-installer.ps1 | iex"
+powershell -ExecutionPolicy ByPass -c "irm https://github.com/MohammadErfan-Jabbari/moli/releases/latest/download/moli-installer.ps1 | iex"
 ```
 
 ## Showcase
