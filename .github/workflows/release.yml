@@ -145,7 +145,7 @@ jobs:
             target: x86_64-apple-darwin
             artifact: release-macos-x86_64
           - arch: aarch64
-            runner: macos-15
+            runner: macos-14
             target: aarch64-apple-darwin
             artifact: release-macos-aarch64
     env:
