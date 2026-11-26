@@ -3,7 +3,7 @@
 > Stock 1.1.27 sends V8 a moderate memory-pressure notification once per second on every live page,
 > about 16% of a core on an idle page ([lexmount/moli#3791](https://github.com/lexmount/moli/issues/3791)).
 > Here the check runs every 15 s and notifies V8 only when the used heap grew by more than 8 MiB since the last check;
-> the critical escalation stays. Install from this fork's releases: see the install commands below.
+> the critical escalation stays. This fork's releases ship Linux binaries only (x86_64 and aarch64); the macOS and Windows install commands below are upstream's and do not work here.
 
 <p align="center">
   <picture>
